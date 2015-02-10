@@ -4,22 +4,166 @@ output:
   html_document:
     keep_md: true
 ---
+## Introduction
 
+*This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. 
+The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.*
+
+## Loading the necessary library's and general info
+
+##### 1. Loading the library's
+```{r echo = TRUE , results = "asis"}
+library(plyr)
+library(xtable)
+library(ggplot2)
+library(lattice)
+```
+
+##### 2. R session info about R machine and OS
+
+```{r echo = TRUE , results = "asis"}
+sessionInfo()
+
+```
+
+##### 3. Date and time
+==>> Date and time of upload:  `r date()`
+
+
+#### 4. Github address
+==>>  https://github.com/boudenoodt/RepData_PeerAssessment1
 
 ## Loading and preprocessing the data
 
+##### 1. read the data file "activity.csv "
 
+The variables included in this dataset are:
+
++ steps: Number of steps taking in a 5-minute interval (missing values are coded as NA)
+
++ date: The date on which the measurement was taken in YYYY-MM-DD format
+
++ interval: Identifier for the 5-minute interval in which measurement was taken
+
++ The dataset is stored in a comma-separated-value (CSV) file and there are a total of 17,568 observations in this dataset.
+
++ This file can be downloaded from "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip""
+
+```{r echo = TRUE , results = "asis"}
+stepsDB <- read.csv("activity.csv",header=TRUE)
+xt <- xtable(head(stepsDB),caption ="Head of data in HTML")
+print(xt,type="html",caption.placement = "top") 
+```
+
+##### 2. Ignore the missing values and put this in a new  dataset 
+
+```{r echo = TRUE , results = "asis"}
+stepsDB_without_na  <- na.omit(stepsDB)
+```  
 
 ## What is mean total number of steps taken per day?
 
 
+###### 1. Calculate the total number of steps taken per day
 
-## What is the average daily activity pattern?
+```{r echo = TRUE , results = "asis"}
+stepsDB_sum_by_date <- ddply(stepsDB_without_na, c(as.quoted("date")),summarise,steps=sum((steps)))
+xt <- xtable(stepsDB_sum_by_date,caption ="total number of steps per day")
+print(xt,type="html",caption.placement = "top")  
+```
+
+###### 2. Create the histogram of the total number of steps taken each day
+```{r echo = TRUE , results = "asis"}
+hist(stepsDB_sum_by_date$steps,xlab="Number of steps per day", ylab="Frequency",main="histogram of the total number of steps per day")
+```
+  
+###### 3. Calculate and report the mean and median of the total number of steps taken per day  
+```{r echo = TRUE , results = "asis"}
+print("mean of the total number of steps taken per day    :") ; mean(stepsDB_sum_by_date$steps) 
+print("median of the total number of steps taken per day  :") ; median(stepsDB_sum_by_date$steps) 
+```
+
+## What is the average daily activity pattern?  
+
+###### 1.  A time series plot of the 5-minute interval and the average number of steps taken,averaged across all days  
 
 
 
-## Imputing missing values
+```{r echo = TRUE , results = "asis"}
+avg_steps_per_interval_without_na <- ddply(stepsDB_without_na, c(as.quoted("interval")),summarise,steps=mean((steps)))
+p <- plot(avg_steps_per_interval_without_na$interval,avg_steps_per_interval_without_na$steps,type = "l",xlab="5 min interval of the day in (((H)H)M)M format (000)5-2355", ylab="Steps per 5 minutes")
+title(main="A time series plot of the 5-minute interval and \n the average number of steps taken,averaged across all days") 
+```  
+
+###### 2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?  
+
+```{r echo = TRUE , results = "asis"}
+print("Interval with maximum average steps: ");avg_steps_per_interval_without_na[avg_steps_per_interval_without_na$steps==max(avg_steps_per_interval_without_na$steps),"interval"]
+
+print("Extra info ===> Number of steps in the Interval with maximum average steps: ");avg_steps_per_interval_without_na[avg_steps_per_interval_without_na$steps==max(avg_steps_per_interval_without_na$steps),"steps"]
+```  
+
+## Imputing missing values  
+
+###### 1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+```{r echo = TRUE , results = "asis"}
+print("Number of missing values is :  ") ;sum(is.na(stepsDB$steps))
+      
+```   
+
+###### 2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+strategy : ==>> replace the missing values with the mean of that specific interval
+using the last produced data.frame (average in avg_steps_per_interval_without_na) with the averaged per interval
 
 
+###### 3. Create a new dataset that is equal to the original dataset but with the missing data filled in  
+
+* Create a new dataset "stepsDB_completed" by copying/joining the origial "stepsDB" (with the NA's still included) dataset  
+and  replacing the NA "steps" values with the corresponding average "steps" values of the same time interval from   the previous calculated "average in avg_steps_per_interval_without_na" dataset 
+* Than copy the average interval value from the joined column (also named steps) into the original (steps)column if this contains an NA value,  otherwise do not change the exiting value
+* delete the joined "steps" column as no longer needed.
+
+```{r echo = TRUE , results = "asis"}
+stepsDB_completed<-join(stepsDB,avg_steps_per_interval_without_na,by="interval") # now there are two columns named "steps"
+stepsDB_completed[is.na(stepsDB_completed$steps),c(1)]<- stepsDB_completed[is.na(stepsDB_completed$steps),c(4)]
+stepsDB_completed<-stepsDB_completed[-4]
+```
+
+###### 4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+```{r echo = TRUE , results = "asis"}
+sum <- ddply(stepsDB_completed, c(as.quoted("date")),summarise,steps=sum((steps)))
+hist(sum$steps,xlab="Steps by day NA's replaced", ylab="Frequency",main="histogram of the total number of steps per day")
+print("mean of the total number of steps taken per day    :") ; mean(sum$steps) 
+print("median of the total number of steps taken per day  :") ; median(sum$steps) 
+```
+
+The mean value is the has not changed  by replacing the NA's because we replaced it by the mean value , As a result the mean value does not change.
+
+The median value is now the same as the mean value and changed a bit compared
+with the values calculated without the NA 's replaced by the corresponding mean value.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+###### 1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day. 
+
+
+```{r echo = TRUE , results = "asis"}
+## convert date to POSIXlt format so that we can use the component "$wday"" of this format and 
+## the sunday or saterday are returned as digit  "0"  or "6"  and the "mod" operator (%%6) 
+## returns in both cases a "0". 
+## The simpler wday() "function" returns a value from "1"" to "7" and so the 
+## expression would be a bitmore elaborated
+stepsDB_completed$wd<- as.factor(ifelse(as.POSIXlt(as.Date(stepsDB_completed$date))$wday%%6==0,"weekend","weekday"))
+```
+
+###### 2. Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.  
+
+```{r echo = TRUE , results = "asis"}
+# we will use the lattice library
+average_steps_per_interval_wd <- ddply(stepsDB_completed, c("wd","interval"),summarise,steps=mean((steps)))
+p <- xyplot(steps ~ interval | factor(wd), data = average_steps_per_interval_wd,  layout=c(1,2), type = "l")
+print(p)
+```
+
